@@ -8,7 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # -------------------------------
-# Beam info fetch function with trigger-matched CKOV/XCET
+# Beam info fetch function with trigger-matched CKOV/XCET and momentum
 # -------------------------------
 def BeamInfo_from_ifbeam(t0: int, t1: int, fXCETDebug=False):
     beam_infos = []
@@ -24,6 +24,10 @@ def BeamInfo_from_ifbeam(t0: int, t1: int, fXCETDebug=False):
     # --- XCET devices (timestamps) ---
     xcet1_sec, xcet1_frac, xcet1_coarse, fetched_XCET1 = get_xcet_values(t0, t1, "XCET021667", debug=fXCETDebug)
     xcet2_sec, xcet2_frac, xcet2_coarse, fetched_XCET2 = get_xcet_values(t0, t1, "XCET021669", debug=fXCETDebug)
+
+    # --- Momentum values ---
+    momentum_ref  = get_var_values(t0, t1, "dip/acc/NORTH/NP02/POW/CALC/MOMENTUM:momentum_ref")
+    momentum_meas = get_var_values(t0, t1, "dip/acc/NORTH/NP02/POW/CALC/MOMENTUM:momentum_meas")
 
     # --- Compute trigger-matched status and timestamp (delta) ---
     status1_list, timestamp1_list = [], []
@@ -68,14 +72,20 @@ def BeamInfo_from_ifbeam(t0: int, t1: int, fXCETDebug=False):
         x2_frac   = xcet2_frac[i]   if fetched_XCET2 and i < len(xcet2_frac) else 0
         x2_coarse = xcet2_coarse[i] if fetched_XCET2 and i < len(xcet2_coarse) else 0
 
+        # Momentum info
+        mom_ref  = momentum_ref[i]  if i < len(momentum_ref)  else 0
+        mom_meas = momentum_meas[i] if i < len(momentum_meas) else 0
+        mom_diff = mom_meas - mom_ref
+
         beam_infos.append((run, evt, t, mom, tof, c0, c1, p0, p1,
                            x1_sec, x1_frac, x1_coarse,
                            x2_sec, x2_frac, x2_coarse,
-                           status1, timestamp1, status2, timestamp2))
+                           status1, timestamp1, status2, timestamp2,
+                           mom_ref, mom_meas, mom_diff))
     return beam_infos
 
 # -------------------------------
-# CKOV / XCET / TOF functions
+# CKOV / XCET / TOF functions (unchanged)
 # -------------------------------
 def get_ckov_values(t0: str, t1: str, dev: str):
     prefix = f"dip/acc/NORTH/NP02/BI/XCET/{dev}"
@@ -293,6 +303,30 @@ def main():
     plt.savefig("ckov_full_combined.png", dpi=150)
     plt.close()
     print("Saved full combined CKOV figure as ckov_full_combined.png")
+
+    # ---------------- Momentum Ref / Meas / Diff ----------------
+    plt.figure(figsize=(8,6))
+    bins = 50
+    for i, ((t0, t1), run_label) in enumerate(zip(time_ranges, run_labels)):
+        beam_infos = BeamInfo_from_ifbeam(t0, t1)
+        mom_ref  = [b[18] for b in beam_infos]
+        mom_meas = [b[19] for b in beam_infos]
+        mom_diff = [b[20] for b in beam_infos]
+        if len(mom_ref) == 0: continue
+        plt.hist(mom_ref,  bins=bins, histtype="step", linewidth=2,
+                 label=f"{run_label} ref",  color=colors[i % len(colors)])
+        plt.hist(mom_meas, bins=bins, histtype="step", linewidth=2,
+                 label=f"{run_label} meas", color=colors[i % len(colors)], linestyle="--")
+        plt.hist(mom_diff, bins=bins, histtype="step", linewidth=2,
+                 label=f"{run_label} diff", color=colors[i % len(colors)], linestyle=":")
+    plt.xlabel("Momentum [MeV/c]")
+    plt.ylabel("Counts")
+    plt.title("Momentum Reference / Measured / Difference")
+    plt.grid(True, linestyle="--", alpha=0.7)
+    plt.legend(fontsize=8)
+    plt.savefig("momentum_ref_meas_diff.png", dpi=150)
+    plt.close()
+    print("Saved momentum overlay histogram as momentum_ref_meas_diff.png")
 
 # -------------------------------
 if __name__ == "__main__":
