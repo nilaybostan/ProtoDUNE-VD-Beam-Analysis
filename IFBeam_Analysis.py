@@ -200,15 +200,15 @@ def parse_csv_value(lines):
 # -------------------------------
 def main():
     time_ranges = [
-        ("08/26/2025 21:15:00", "08/27/2025 09:46:00"),
-        ("08/27/2025 14:43:00", "08/27/2025 16:16:00"),
-        ("08/27/2025 16:16:00", "08/27/2025 16:54:00")
+        ("2025-08-24T21:15:11-05:00", "2025-08-25T07:04:09-05:00"),
+        ("2025-08-28T16:16:02-05:00", "2025-08-28T16:53:57-05:00"),
+        ("2025-08-30T09:00:04-05:00", "2025-08-30T15:00:04-05:00")
     ]
     
     run_labels = [
-        "Run 39132 (0.3 GeV, Cu target)",
-        "Run 39136 (0.7 GeV, Cu target)",
-        "Run 39137 (0.7 GeV, Cu target)"
+        "2025-08-24",
+        "2025-08-28",
+        "2025-08-30"
     ]
 
     colors = ["blue", "red", "green"]
@@ -219,7 +219,7 @@ def main():
         beam_infos = BeamInfo_from_ifbeam(t0, t1)
         tofs = [b[4] for b in beam_infos]
         if len(tofs) == 0: continue
-        plt.hist(tofs, bins=100, range=(60, 100),
+        plt.hist(tofs, bins=60, range=(60, 90),
                  histtype="step", linewidth=2,
                  label=run_label, color=colors[i % len(colors)])
     plt.xlabel("TOF [ns]")
@@ -231,37 +231,42 @@ def main():
     plt.close()
 
     # ---------------- CKOV combined figure ----------------
-    fig, axs = plt.subplots(4, 2, figsize=(14,12))
+    fig, axs = plt.subplots(4, 2, figsize=(16,16), constrained_layout=True)  # increased size + constrained_layout
+    momentum_bins = np.linspace(0.05, 12, 24)  # 0.5 GeV bins
     for idx, name in enumerate(["CKOV1","CKOV2"]):
         for i, ((t0, t1), run_label) in enumerate(zip(time_ranges, run_labels)):
             beam_infos = BeamInfo_from_ifbeam(t0, t1)
             counts = [b[5 if idx==0 else 6] for b in beam_infos]
             press  = [b[7 if idx==0 else 8] for b in beam_infos]
+            mom_meas = [b[20] for b in beam_infos]
 
-            axs[idx,0].hist(counts, bins=50, histtype="step", linewidth=2,
-                            label=f"{run_label}", color=colors[i % len(colors)])
+            # Plot counts per momentum bin
+            for j in range(len(momentum_bins)-1):
+                mask = (np.array(mom_meas) >= momentum_bins[j]) & (np.array(mom_meas) < momentum_bins[j+1])
+                axs[idx,0].hist(np.array(counts)[mask], bins=50, histtype="step",
+                                linewidth=1, label=f"{run_label} {momentum_bins[j]:.1f}-{momentum_bins[j+1]:.1f} GeV",
+                                alpha=0.7)
+                axs[idx,1].hist(np.array(press)[mask], bins=50, histtype="step",
+                                linewidth=1, label=f"{run_label} {momentum_bins[j]:.1f}-{momentum_bins[j+1]:.1f} GeV",
+                                alpha=0.7)
             axs[idx,0].set_xlabel(f"{name} Counts")
             axs[idx,0].set_ylabel("Entries")
             axs[idx,0].grid(True, linestyle="--", alpha=0.7)
             axs[idx,0].set_title(f"{name} Counts")
-
-            axs[idx,1].hist(press, bins=50, histtype="step", linewidth=2,
-                            label=f"{run_label}", color=colors[i % len(colors)])
             axs[idx,1].set_xlabel(f"{name} Pressure")
             axs[idx,1].set_ylabel("Entries")
             axs[idx,1].grid(True, linestyle="--", alpha=0.7)
             axs[idx,1].set_title(f"{name} Pressure")
 
-        axs[idx,0].legend(fontsize=8)
-        axs[idx,1].legend(fontsize=8)
+        axs[idx,0].legend(fontsize=6, ncol=2)
+        axs[idx,1].legend(fontsize=6, ncol=2)
 
-    plt.tight_layout()
     plt.savefig("ckov_full_combined.png", dpi=150)
     plt.close()
 
     # ---------------- Momentum Ref / Meas / Diff ----------------
     plt.figure(figsize=(8,6))
-    bins = 50
+    bins = np.linspace(0.05, 12, 100)
     for i, ((t0, t1), run_label) in enumerate(zip(time_ranges, run_labels)):
         beam_infos = BeamInfo_from_ifbeam(t0, t1)
         mom_ref  = [b[19] for b in beam_infos]
@@ -287,35 +292,18 @@ def main():
         beam_infos = BeamInfo_from_ifbeam(t0, t1)
         tofs = np.array([b[4] for b in beam_infos])
         mom_meas = np.array([b[20] for b in beam_infos])
-        if len(tofs)==0 or len(mom_meas)==0: continue
-
-        plt.figure(figsize=(8,6))
-        plt.hist2d(mom_meas, tofs, bins=(50,50), range=[[0,max(mom_meas)], [60,100]], cmap="viridis")
+        plt.figure(figsize=(10,6))
+        plt.hist2d(mom_meas, tofs, bins=[momentum_bins, 60], range=[[0.05,12],[60,90]], cmap="viridis")
         plt.colorbar(label="Counts")
         plt.xlabel("Measured Momentum [GeV/c]")
         plt.ylabel("TOF [ns]")
-        plt.title(f"TOF vs Measured Momentum: {run_label}")
+        plt.title(f"TOF vs Momentum 2D Histogram: {run_label}")
         plt.grid(True, linestyle="--", alpha=0.5)
-        fname = f"tof_vs_mom_2d_{i}.png"
-        plt.savefig(fname, dpi=150)
+        plt.savefig(f"tof_vs_momentum_2D_{i}.png", dpi=150)
         plt.close()
-        print(f"Saved 2D heatmap as {fname}")
 
-    # ---------------- 1D Plot: Measured Momentum vs TOF overlay ----------------
-    plt.figure(figsize=(8,6))
-    for i, ((t0, t1), run_label) in enumerate(zip(time_ranges, run_labels)):
-        beam_infos = BeamInfo_from_ifbeam(t0, t1)
-        tofs = [b[4] for b in beam_infos]
-        mom_meas = [b[20] for b in beam_infos]
-        plt.scatter(mom_meas, tofs, s=10, alpha=0.5, label=run_label, color=colors[i % len(colors)])
-    plt.xlabel("Measured Momentum [GeV/c]")
-    plt.ylabel("TOF [ns]")
-    plt.title("Measured Momentum vs TOF Overlay (All Runs)")
-    plt.grid(True, linestyle="--", alpha=0.5)
-    plt.legend(fontsize=8)
-    plt.savefig("momentum_vs_tof_overlay.png", dpi=150)
-    plt.close()
     print("All plots saved successfully!")
 
 if __name__ == "__main__":
     main()
+
