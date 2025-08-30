@@ -7,9 +7,10 @@ import urllib3
 import numpy as np
 import matplotlib.pyplot as plt
 
-
+# -------------------------------
+# Beam info fetch function with trigger-matched CKOV/XCET
+# -------------------------------
 def BeamInfo_from_ifbeam(t0: int, t1: int, fXCETDebug=False):
-    """Fetch beam info including TOF, Cherenkov, and XCET timestamp devices"""
     beam_infos = []
     run=0; evt=0; t=0; mom=0
 
@@ -24,13 +25,42 @@ def BeamInfo_from_ifbeam(t0: int, t1: int, fXCETDebug=False):
     xcet1_sec, xcet1_frac, xcet1_coarse, fetched_XCET1 = get_xcet_values(t0, t1, "XCET021667", debug=fXCETDebug)
     xcet2_sec, xcet2_frac, xcet2_coarse, fetched_XCET2 = get_xcet_values(t0, t1, "XCET021669", debug=fXCETDebug)
 
+    # --- Compute trigger-matched status and timestamp (delta) ---
+    status1_list, timestamp1_list = [], []
+    status2_list, timestamp2_list = [], []
+
     for i, tof in enumerate(tofs):
+        # CKOV1
+        status1 = -1 if not fetched_XCET1 else 0
+        timestamp1 = -1.0
+        if fetched_XCET1:
+            for ic1 in range(len(xcet1_sec)):
+                delta = 1e9*(0 - xcet1_sec[ic1]) + (0 - (8.*xcet1_coarse[ic1] + xcet1_frac[ic1]/512.))
+                if abs(delta) < 500.:
+                    status1 = 1
+                    timestamp1 = delta
+                    break
+        status1_list.append(status1)
+        timestamp1_list.append(timestamp1)
+
+        # CKOV2
+        status2 = -1 if not fetched_XCET2 else 0
+        timestamp2 = -1.0
+        if fetched_XCET2:
+            for ic2 in range(len(xcet2_sec)):
+                delta = 1e9*(0 - xcet2_sec[ic2]) + (0 - (8.*xcet2_coarse[ic2] + xcet2_frac[ic2]/512.))
+                if abs(delta) < 500.:
+                    status2 = 1
+                    timestamp2 = delta
+                    break
+        status2_list.append(status2)
+        timestamp2_list.append(timestamp2)
+
+        # Append beam info
         c0 = ckov1_trig[i] if i < len(ckov1_trig) else 0
         c1 = ckov2_trig[i] if i < len(ckov2_trig) else 0
         p0 = ckov1_press[i] if i < len(ckov1_press) else 0
         p1 = ckov2_press[i] if i < len(ckov2_press) else 0
-
-        # XCET info (only include first element to match C++ style, else 0)
         x1_sec    = xcet1_sec[i]    if fetched_XCET1 and i < len(xcet1_sec) else 0
         x1_frac   = xcet1_frac[i]   if fetched_XCET1 and i < len(xcet1_frac) else 0
         x1_coarse = xcet1_coarse[i] if fetched_XCET1 and i < len(xcet1_coarse) else 0
@@ -40,21 +70,21 @@ def BeamInfo_from_ifbeam(t0: int, t1: int, fXCETDebug=False):
 
         beam_infos.append((run, evt, t, mom, tof, c0, c1, p0, p1,
                            x1_sec, x1_frac, x1_coarse,
-                           x2_sec, x2_frac, x2_coarse))
+                           x2_sec, x2_frac, x2_coarse,
+                           status1, timestamp1, status2, timestamp2))
     return beam_infos
 
-
+# -------------------------------
+# CKOV / XCET / TOF functions
+# -------------------------------
 def get_ckov_values(t0: str, t1: str, dev: str):
-    """Fetch counts, trigger counts, and pressures for Cherenkov device"""
     prefix = f"dip/acc/NORTH/NP02/BI/XCET/{dev}"
     counts     = get_var_values(t0, t1, prefix + ":counts")
     countsTrig = get_var_values(t0, t1, prefix + ":countsTrig")
     pressures  = get_var_values(t0, t1, prefix + ":pressure")
     return counts, countsTrig, pressures
 
-
 def get_xcet_values(t0: str, t1: str, dev: str, debug=False):
-    """Fetch XCET device SECONDS, FRAC, and COARSE values"""
     prefix = f"dip/acc/NORTH/NP02/BI/{dev}"
     try:
         seconds = get_var_values(t0, t1, prefix + ":SECONDS")
@@ -70,7 +100,6 @@ def get_xcet_values(t0: str, t1: str, dev: str, debug=False):
     except Exception as e:
         print(f"WARNING: Could not get {dev} info: {e}")
         return [], [], [], False
-
 
 def get_tofs(t0: str, t1: str, delta_trig: float, offset: float):
     trig_n, trig_s, trig_c, trig_f = get_trigger_values(t0, t1)
@@ -111,7 +140,6 @@ def get_tofs(t0: str, t1: str, delta_trig: float, offset: float):
                                 
     return tofs
 
-
 def check_valid_tof(tof_ref_sec, tof_ref_ns, tof_s, tof_c, tof_f, tofs: []):
     fUpstreamToDownstream = 500.0
     for k in range(len(tof_c)):
@@ -122,31 +150,26 @@ def check_valid_tof(tof_ref_sec, tof_ref_ns, tof_s, tof_c, tof_f, tofs: []):
         if 0 < delta < fUpstreamToDownstream:
             tofs.append(delta)
 
-
 def get_tof_vars_values(t0: str, t1: str, tof_var_name: str):
     prefix = "dip/acc/NORTH/NP02/BI/XTOF/"+tof_var_name
     return get_relevant_values(t0, t1, prefix)
-
 
 def get_trigger_values(t0: str, t1: str):
     prefix = "dip/acc/NORTH/NP02/BI/TDC/GeneralTrigger"
     return get_relevant_values(t0, t1, prefix)
     
-
 def get_relevant_values(t0: str, t1: str, prefix: str):
     seconds_data = get_var_values(t0, t1, prefix+":seconds[]")
     coarse_data  = get_var_values(t0, t1, prefix+":coarse[]")
     frac_data    = get_var_values(t0, t1, prefix+":frac[]")
     count_var    = get_var_values(t0, t1, prefix+":timestampCount")
     return count_var, seconds_data, coarse_data, frac_data
-    
 
 def get_var_values(t0: str, t1: str, var_name: str):
     event  = "z,pdune"
     lines = fetch_ifbeam(var_name, event, t0, t1)
     data = parse_csv_value(lines)
     return data    
-
 
 def fetch_ifbeam(var, event, t0, t1):
     url = (
@@ -157,7 +180,6 @@ def fetch_ifbeam(var, event, t0, t1):
     r = requests.get(url, verify=False)
     r.raise_for_status()
     return r.text.splitlines()
-
 
 def parse_csv_value(lines):
     values = []
@@ -173,9 +195,8 @@ def parse_csv_value(lines):
             continue
     return values
 
-
 # -------------------------------
-# Main function
+# Main plotting function
 # -------------------------------
 def main():
     time_ranges = [
@@ -190,19 +211,15 @@ def main():
         "Run 39137 (0.7 GeV, Cu target)"
     ]
 
-    delta_trig = 60.0
-    offset = 0.0
-    nbins = 100
-    xmin, xmax = 60, 90
     colors = ["blue", "red", "green"]
 
     # ---------------- TOF overlay ----------------
     plt.figure(figsize=(8,6))
     for i, ((t0, t1), run_label) in enumerate(zip(time_ranges, run_labels)):
         beam_infos = BeamInfo_from_ifbeam(t0, t1, fXCETDebug=False)
-        tofs = [b[4] for b in beam_infos]   # extract TOF
+        tofs = [b[4] for b in beam_infos]
         if len(tofs) == 0: continue
-        plt.hist(tofs, bins=nbins, range=(xmin, xmax),
+        plt.hist(tofs, bins=100, range=(60, 90),
                  histtype="step", linewidth=2,
                  label=run_label, color=colors[i % len(colors)])
     plt.xlabel("TOF [ns]")
@@ -214,42 +231,69 @@ def main():
     plt.close()
     print("Saved combined histogram as tof_all_runs.png")
 
-    # ---------------- CKOV separate plots: counts and pressures ----------------
-    for idx, name in enumerate(["CKOV1", "CKOV2"]):
-        # Counts plot
-        plt.figure(figsize=(8,6))
+    # ---------------- CKOV combined figure ----------------
+    fig, axs = plt.subplots(4, 2, figsize=(14,12))
+
+    for idx, name in enumerate(["CKOV1","CKOV2"]):
         for i, ((t0, t1), run_label) in enumerate(zip(time_ranges, run_labels)):
             beam_infos = BeamInfo_from_ifbeam(t0, t1)
+
+            # --- Counts ---
             counts = [b[5 if idx==0 else 6] for b in beam_infos]
-            if len(counts) == 0: continue
-            plt.hist(counts, bins=50, histtype="step", linewidth=2,
-                     label=f"{run_label}", color=colors[i % len(colors)])
-        plt.xlabel(f"{name} Counts")
-        plt.ylabel("Entries")
-        plt.title(f"{name} Counts Distribution (Overlay of Runs)")
-        plt.grid(True, linestyle="--", alpha=0.7)
-        plt.legend(fontsize=9, loc="upper right")
-        plt.savefig(f"{name.lower()}_counts_all_runs.png", dpi=150)
-        plt.close()
-        print(f"Saved {name} counts histogram")
+            axs[idx,0].hist(counts, bins=50, histtype="step", linewidth=2,
+                            label=f"{run_label}", color=colors[i % len(colors)])
+            axs[idx,0].set_xlabel(f"{name} Counts")
+            axs[idx,0].set_ylabel("Entries")
+            axs[idx,0].grid(True, linestyle="--", alpha=0.7)
+            axs[idx,0].set_title(f"{name} Counts")
 
-        # Pressure plot
-        plt.figure(figsize=(8,6))
+            # --- Pressure ---
+            press = [b[7 if idx==0 else 8] for b in beam_infos]
+            axs[idx,1].hist(press, bins=50, histtype="step", linewidth=2,
+                            label=f"{run_label}", color=colors[i % len(colors)])
+            axs[idx,1].set_xlabel(f"{name} Pressure")
+            axs[idx,1].set_ylabel("Entries")
+            axs[idx,1].grid(True, linestyle="--", alpha=0.7)
+            axs[idx,1].set_title(f"{name} Pressure")
+
+        axs[idx,0].legend(fontsize=8)
+        axs[idx,1].legend(fontsize=8)
+
+    # --- Trigger-matched status / timestamp ---
+    for idx, name in enumerate(["CKOV1","CKOV2"]):
         for i, ((t0, t1), run_label) in enumerate(zip(time_ranges, run_labels)):
             beam_infos = BeamInfo_from_ifbeam(t0, t1)
-            press = [b[7 if idx==0 else 8] for b in beam_infos]
-            if len(press) == 0: continue
-            plt.hist(press, bins=50, histtype="step", linewidth=2,
-                     label=f"{run_label}", color=colors[i % len(colors)])
-        plt.xlabel(f"{name} Pressure")
-        plt.ylabel("Entries")
-        plt.title(f"{name} Pressure Distribution (Overlay of Runs)")
-        plt.grid(True, linestyle="--", alpha=0.7)
-        plt.legend(fontsize=9, loc="upper right")
-        plt.savefig(f"{name.lower()}_pressure_all_runs.png", dpi=150)
-        plt.close()
-        print(f"Saved {name} pressure histogram")
 
+            # Status
+            status_idx = 15 if idx==0 else 17
+            statuses = [b[status_idx] for b in beam_infos]
+            axs[idx+2,0].hist(statuses, bins=[-1,0,1,2], align='left', rwidth=0.5,
+                               histtype="step", linewidth=2,
+                               label=f"{run_label}", color=colors[i % len(colors)])
+            axs[idx+2,0].set_xlabel(f"{name} Trigger-Matched Status")
+            axs[idx+2,0].set_ylabel("Entries")
+            axs[idx+2,0].grid(True, linestyle="--", alpha=0.7)
+            axs[idx+2,0].set_title(f"{name} Status")
 
+            # TimeStamp
+            time_idx = 16 if idx==0 else 18
+            timestamps = [b[time_idx] for b in beam_infos if b[time_idx] != -1]
+            axs[idx+2,1].hist(timestamps, bins=50,
+                               histtype="step", linewidth=2,
+                               label=f"{run_label}", color=colors[i % len(colors)])
+            axs[idx+2,1].set_xlabel(f"{name} TimeStamp Delta [ns]")
+            axs[idx+2,1].set_ylabel("Entries")
+            axs[idx+2,1].grid(True, linestyle="--", alpha=0.7)
+            axs[idx+2,1].set_title(f"{name} TimeStamp")
+
+        axs[idx+2,0].legend(fontsize=8)
+        axs[idx+2,1].legend(fontsize=8)
+
+    plt.tight_layout()
+    plt.savefig("ckov_full_combined.png", dpi=150)
+    plt.close()
+    print("Saved full combined CKOV figure as ckov_full_combined.png")
+
+# -------------------------------
 if __name__ == "__main__":
     main()
