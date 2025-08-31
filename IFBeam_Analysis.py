@@ -291,7 +291,7 @@ def main():
         tofs = np.array([b[4] for b in beam_infos])
         mom_meas = np.array([b[20] for b in beam_infos])
         plt.figure(figsize=(10,6))
-        plt.hist2d(mom_meas, tofs, bins=[momentum_bins, 15], range=[[0.05,12],[60,90]], cmap="jet")
+        plt.hist2d(mom_meas, tofs, bins=[momentum_bins, 300], range=[[0.05,12],[60,90]], cmap="plasma")
         plt.colorbar(label="Counts")
         plt.xlabel("Measured Momentum [GeV/c]")
         plt.ylabel("TOF [ns]")
