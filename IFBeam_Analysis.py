@@ -6,7 +6,6 @@ import sys
 import urllib3
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 
 # -------------------------------
 # Beam info fetch function with trigger-matched CKOV/XCET and momentum
@@ -86,7 +85,7 @@ def BeamInfo_from_ifbeam(t0: int, t1: int, fXCETDebug=False):
     return beam_infos
 
 # -------------------------------
-# CKOV / XCET / TOF / DB functions (unchanged)
+# CKOV / XCET / TOF / DB functions
 # -------------------------------
 def get_ckov_values(t0: str, t1: str, dev: str):
     prefix = f"dip/acc/NORTH/NP02/BI/XCET/{dev}"
@@ -297,12 +296,8 @@ def main():
         plt.xlabel("Measured Momentum [GeV/c]")
         plt.ylabel("TOF [ns]")
         plt.title(f"TOF vs Momentum 2D Histogram: {run_label}")
-
-        # Proxy legend for hist2d
-        proxy = [mpatches.Patch(color='purple', label=run_label)]
-        plt.legend(handles=proxy, fontsize=10)
-
         plt.grid(True, linestyle="--", alpha=0.5)
+        # Note: No legend here; colorbar conveys information
         plt.savefig(f"tof_vs_momentum_2D_{i}.png", dpi=150)
         plt.close()
 
