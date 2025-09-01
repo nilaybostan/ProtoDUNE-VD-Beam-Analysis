@@ -6,6 +6,7 @@ import sys
 import urllib3
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
 
 # -------------------------------
 # Beam info fetch function with trigger-matched CKOV/XCET and momentum
@@ -200,9 +201,9 @@ def parse_csv_value(lines):
 # -------------------------------
 def main():
     time_ranges = [
-        ("2025-08-24T08:00:10-05:00", "2025-08-24T09:00:10-05:00"),
-        ("2025-08-26T08:00:10-05:00", "2025-08-26T09:00:10-05:00"),
-        ("2025-08-28T08:00:10-05:00", "2025-08-28T09:00:10-05:00")
+        ("2025-08-24T08:00:00-05:00", "2025-08-24T11:10:00-05:00"),
+        ("2025-08-26T08:00:00-05:00", "2025-08-26T11:10:00-05:00"),
+        ("2025-08-28T08:00:00-05:00", "2025-08-28T11:10:00-05:00")
     ]
     
     run_labels = [
@@ -290,18 +291,32 @@ def main():
         beam_infos = BeamInfo_from_ifbeam(t0, t1)
         tofs = np.array([b[4] for b in beam_infos])
         mom_meas = np.array([b[20] for b in beam_infos])
+
         plt.figure(figsize=(10,6))
-        plt.hist2d(mom_meas, tofs, bins=[momentum_bins, 300], range=[[0.05,12],[60,90]], cmap="plasma")
-        plt.colorbar(label="Counts")
+        
+        # 2D histogram counts
+        h, xedges, yedges, im = plt.hist2d(
+            mom_meas, tofs,
+            bins=[momentum_bins, 300],
+            range=[[0.05,12],[60,90]],
+            cmap="plasma",
+            norm=LogNorm(vmin=1)  # fix zero-count problem
+        )
+
+        # Mask zeros for contour plotting
+        h_masked = np.ma.masked_equal(h.T, 0)
+        X, Y = np.meshgrid(0.5*(xedges[:-1]+xedges[1:]), 0.5*(yedges[:-1]+yedges[1:]))
+        levels = np.logspace(0, np.log10(h_masked.max()), num=6)
+        cs = plt.contour(X, Y, h_masked, levels=levels, colors="white", linewidths=1)
+        plt.clabel(cs, inline=True, fontsize=8, fmt="%1.0f")
+
+        plt.colorbar(im, label="Counts (log scale)")
         plt.xlabel("Measured Momentum [GeV/c]")
         plt.ylabel("TOF [ns]")
         plt.title(f"TOF vs Momentum 2D Histogram: {run_label}")
         plt.grid(True, linestyle="--", alpha=0.5)
-        # removed legend for hist2d
         plt.savefig(f"tof_vs_momentum_2D_{i}.png", dpi=150)
         plt.close()
-
-    print("All plots saved successfully!")
 
 if __name__ == "__main__":
     main()
