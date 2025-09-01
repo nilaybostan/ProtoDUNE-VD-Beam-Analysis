@@ -6,6 +6,7 @@ import sys
 import urllib3
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 
 # -------------------------------
 # Beam info fetch function with trigger-matched CKOV/XCET and momentum
@@ -85,7 +86,7 @@ def BeamInfo_from_ifbeam(t0: int, t1: int, fXCETDebug=False):
     return beam_infos
 
 # -------------------------------
-# CKOV / XCET / TOF / DB functions
+# CKOV / XCET / TOF / DB functions (unchanged)
 # -------------------------------
 def get_ckov_values(t0: str, t1: str, dev: str):
     prefix = f"dip/acc/NORTH/NP02/BI/XCET/{dev}"
@@ -200,15 +201,15 @@ def parse_csv_value(lines):
 # -------------------------------
 def main():
     time_ranges = [
-        ("2025-08-24T21:15:11-05:00", "2025-08-25T07:04:09-05:00"),
-        ("2025-08-28T16:16:02-05:00", "2025-08-28T16:53:57-05:00"),
-        ("2025-08-30T09:00:04-05:00", "2025-08-30T15:00:04-05:00")
+        ("2025-08-24T08:00:10-05:00", "2025-08-24T08:00:10-05:00"),
+        ("2025-08-26T08:00:10-05:00", "2025-08-26T08:00:10-05:00"),
+        ("2025-08-28T08:00:10-05:00", "2025-08-28T08:00:10-05:00")
     ]
     
     run_labels = [
         "2025-08-24",
-        "2025-08-28",
-        "2025-08-30"
+        "2025-08-26",
+        "2025-08-28"
     ]
 
     colors = ["blue", "red", "green"]
@@ -296,6 +297,11 @@ def main():
         plt.xlabel("Measured Momentum [GeV/c]")
         plt.ylabel("TOF [ns]")
         plt.title(f"TOF vs Momentum 2D Histogram: {run_label}")
+
+        # Proxy legend for hist2d
+        proxy = [mpatches.Patch(color='purple', label=run_label)]
+        plt.legend(handles=proxy, fontsize=10)
+
         plt.grid(True, linestyle="--", alpha=0.5)
         plt.savefig(f"tof_vs_momentum_2D_{i}.png", dpi=150)
         plt.close()
