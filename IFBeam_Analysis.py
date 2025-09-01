@@ -201,9 +201,9 @@ def parse_csv_value(lines):
 # -------------------------------
 def main():
     time_ranges = [
-        ("2025-08-24T08:00:00-05:00", "2025-08-24T11:10:00-05:00"),
-        ("2025-08-26T08:00:00-05:00", "2025-08-26T11:10:00-05:00"),
-        ("2025-08-28T08:00:00-05:00", "2025-08-28T11:10:00-05:00")
+        ("2025-08-24T08:00:00-05:00", "2025-08-24T11:08:30-05:00"),
+        ("2025-08-26T08:00:00-05:00", "2025-08-26T11:08:30-05:00"),
+        ("2025-08-28T08:00:00-05:00", "2025-08-28T11:08:30-05:00")
     ]
     
     run_labels = [
@@ -292,25 +292,32 @@ def main():
         tofs = np.array([b[4] for b in beam_infos])
         mom_meas = np.array([b[20] for b in beam_infos])
 
+        if len(tofs) == 0 or len(mom_meas) == 0:
+            print(f"Run {run_label} has no TOF/momentum data, skipping 2D histogram")
+            continue
+
         plt.figure(figsize=(10,6))
-        
+
         # 2D histogram counts
         h, xedges, yedges, im = plt.hist2d(
             mom_meas, tofs,
             bins=[momentum_bins, 300],
             range=[[0.05,12],[60,90]],
-            cmap="plasma",
-            norm=LogNorm(vmin=1)  # fix zero-count problem
+            cmap="plasma"
         )
 
-        # Mask zeros for contour plotting
-        h_masked = np.ma.masked_equal(h.T, 0)
-        X, Y = np.meshgrid(0.5*(xedges[:-1]+xedges[1:]), 0.5*(yedges[:-1]+yedges[1:]))
-        levels = np.logspace(0, np.log10(h_masked.max()), num=6)
-        cs = plt.contour(X, Y, h_masked, levels=levels, colors="white", linewidths=1)
-        plt.clabel(cs, inline=True, fontsize=8, fmt="%1.0f")
+        if np.any(h > 0):
+            # Apply log scale only if histogram has non-zero bins
+            im.set_norm(LogNorm(vmin=1, vmax=h.max()))
+            
+            # Mask zeros for contour plotting
+            h_masked = np.ma.masked_equal(h.T, 0)
+            X, Y = np.meshgrid(0.5*(xedges[:-1]+xedges[1:]), 0.5*(yedges[:-1]+yedges[1:]))
+            levels = np.logspace(0, np.log10(h_masked.max()), num=6)
+            cs = plt.contour(X, Y, h_masked, levels=levels, colors="white", linewidths=1)
+            plt.clabel(cs, inline=True, fontsize=8, fmt="%1.0f")
 
-        plt.colorbar(im, label="Counts (log scale)")
+        plt.colorbar(im, label="Counts (log scale)" if np.any(h > 0) else "Counts")
         plt.xlabel("Measured Momentum [GeV/c]")
         plt.ylabel("TOF [ns]")
         plt.title(f"TOF vs Momentum 2D Histogram: {run_label}")
