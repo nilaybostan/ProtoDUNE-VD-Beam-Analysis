@@ -200,9 +200,9 @@ def parse_csv_value(lines):
 # -------------------------------
 def main():
     time_ranges = [
-        ("2025-08-24T08:00:10-05:00", "2025-08-24T08:00:10-05:00"),
-        ("2025-08-26T08:00:10-05:00", "2025-08-26T08:00:10-05:00"),
-        ("2025-08-28T08:00:10-05:00", "2025-08-28T08:00:10-05:00")
+        ("2025-08-24T08:00:10-05:00", "2025-08-24T09:00:10-05:00"),
+        ("2025-08-26T08:00:10-05:00", "2025-08-26T09:00:10-05:00"),
+        ("2025-08-28T08:00:10-05:00", "2025-08-28T09:00:10-05:00")
     ]
     
     run_labels = [
@@ -297,7 +297,7 @@ def main():
         plt.ylabel("TOF [ns]")
         plt.title(f"TOF vs Momentum 2D Histogram: {run_label}")
         plt.grid(True, linestyle="--", alpha=0.5)
-        # Note: No legend here; colorbar conveys information
+        # removed legend for hist2d
         plt.savefig(f"tof_vs_momentum_2D_{i}.png", dpi=150)
         plt.close()
 
