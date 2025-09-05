@@ -27,7 +27,7 @@ python3 IFBeam_Analysis.py
 
 directly can be run using the command below:
 
-python3 third.py z,pdune 2025-08-25T11:11:11-05:00 2025-08-25T11:12:15-05:00 clock.csv
+python3 clock_ifbeam_reader.py z,pdune 2025-08-25T11:11:11-05:00 2025-08-25T11:12:15-05:00 clock.csv
 
 4) TOF_CKOV.py
    
