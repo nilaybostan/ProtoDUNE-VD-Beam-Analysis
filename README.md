@@ -1,6 +1,6 @@
 1) ifbeamreader.py
 
-it can be run using the command below:
+the code only gives the TOF values from ifbeam database, it can be run using the command below:
 
 in interactive Python:
 
@@ -19,13 +19,13 @@ to see the values in the screen. you can run in your local computer or in lxplus
 
 2) IFBeam_Analysis.py
 
-directly can be run by using the command below: 
+the code gives the beam values (TOF, momentum, CKOV) values from ifbeam database. directly can be run by using the command below: 
 
 python3 IFBeam_Analysis.py
 
 3) clock_ifbeam_reader.py
 
-directly can be run using the command below:
+it gives the clock time for three TOF counter variables, directly can be run using the command below:
 
 python3 clock_ifbeam_reader.py z,pdune 2025-08-25T11:11:11-05:00 2025-08-25T11:12:15-05:00 clock.csv
 
