@@ -1,6 +1,9 @@
-ifbeamreader.py:
+ifbeamreader.py
+
 it can be run using the command below:
+
 in interactive Python:
+
 ipython
 import ifbeam_reader
 tofs = ifbeam_reader.get_tofs("2025-08-25T11:11:11-05:00","2025-08-25T11:11:18-05:00",60,0) for the specific time ranges you can select what you want to get the TOF.
