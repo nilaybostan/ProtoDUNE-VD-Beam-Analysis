@@ -10,7 +10,7 @@ import ifbeam_reader
 
 tofs = ifbeam_reader.get_tofs("2025-08-25T11:11:11-05:00","2025-08-25T11:11:18-05:00",60,0) 
 
-for the specific time ranges you can select what you want to get the TOF.
+for the specific time ranges, you can select what you want to get the TOF.
 
 then just type: tofs 
 
@@ -23,7 +23,7 @@ directly can be run by using the command below:
 
 python3 IFBeam_Analysis.py
 
-3) third.py
+3) clock_ifbeam_reader.py
 
 directly can be run using the command below:
 
