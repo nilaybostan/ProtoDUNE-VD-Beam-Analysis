@@ -2,90 +2,138 @@
 # -*- coding: utf-8 -*-
 #to run: chmod +x plot_rawdigits.py then ./plot_rawdigits.py -f input.root ya da mesela in apptainer use for running: python dump_detsim_stage1_np02.py -f np02vd_raw_run040014_0010_df-s04-d3_dw_0_20251011T181420_reco_stage1_20251011T195216_keepup.root
 # 0-951,952-2*952 -1, 2*952-3072 for induction 1, induction 2, and collection
-from argparse import ArgumentParser as ap
-import ROOT as RT
-from gallery_utils import read_header, provide_list
+#!/usr/bin/env python3
+
+from argparse import ArgumentParser
+import ROOT
 import numpy as np
 import matplotlib.pyplot as plt
 
+from gallery_utils import read_header, provide_list
 
+# ------------------------------------------------------------
+# Constants (MATCH reference display)
+# ------------------------------------------------------------
+NTICKS = 8000
+
+IND_VMIN, IND_VMAX = -40, 40
+COL_VMIN, COL_VMAX = 0, 100
+
+CMAP_IND = "RdBu_r"
+CMAP_COL = "viridis"
+
+CRP4_U = (0, 1000)
+CRP4_V = (1000, 2000)
+CRP4_Z = (2000, 3000)
+
+CRP5_U = (3000, 4000)
+CRP5_V = (4000, 5000)
+CRP5_Z = (5000, 6200)
+
+# ------------------------------------------------------------
+def plot_view(ax, wfs, ch_range, title, vmin, vmax, cmap):
+    img = ax.imshow(
+        wfs[ch_range[0]:ch_range[1], :].T,
+        aspect="auto",
+        origin="upper",
+        vmin=vmin,
+        vmax=vmax,
+        cmap=cmap,
+        extent=[ch_range[0], ch_range[1], NTICKS, 0],
+    )
+    ax.set_title(title)
+    ax.set_xlabel("Channel Number")
+    ax.set_ylabel("Time Ticks (512 ns / tick)")
+    return img
+
+
+# ------------------------------------------------------------
 def main():
-    # --------------------------------------------------
-    # gallery setup
-    # --------------------------------------------------
-    read_header('gallery/ValidHandle.h')
+    # --------------------------------------------------------
+    # gallery setup (REQUIRED)
+    # --------------------------------------------------------
+    read_header("gallery/ValidHandle.h")
 
-    prodv = 'std::vector<raw::RawDigit>'
+    prodv = "std::vector<raw::RawDigit>"
     provide_list([prodv])
 
-    # --------------------------------------------------
-    # argument parsing
-    # --------------------------------------------------
-    parser = ap(description="Plot RawDigit waveforms as an image")
-    parser.add_argument('-f', type=str, required=True,
-                        help='Input ROOT file')
-    parser.add_argument('-n', type=int, default=-1,
-                        help='Event number (currently unused)')
+    # --------------------------------------------------------
+    # arguments
+    # --------------------------------------------------------
+    parser = ArgumentParser()
+    parser.add_argument("-f", required=True, help="Input ROOT file")
     parser.add_argument(
-        '--tag',
-        type=str,
-        default='tpcrawdecoder:daq:pdvdkeepupstage1',
-        help='InputTag for RawDigits'
+        "--tag",
+        default="tpcrawdecoder:daq:pdvdkeepupstage1",
+        help="RawDigit InputTag",
     )
-    parser.add_argument('--nticks', type=int, default=6000,
-                        help='Number of ticks to read')
-
     args = parser.parse_args()
 
-    # --------------------------------------------------
-    # Event setup
-    # --------------------------------------------------
-    ev = RT.gallery.Event([args.f])
-    get_prods = ev.getValidHandle[prodv]
-
+    # --------------------------------------------------------
+    # Open event SAFELY
+    # --------------------------------------------------------
+    ev = ROOT.gallery.Event([args.f])
     ev.goToEntry(0)
 
-    # --------------------------------------------------
-    # Get product
-    # --------------------------------------------------
-    prod = get_prods(RT.art.InputTag(args.tag))
-    rawdigits = prod.product()
+    get_handle = ev.getValidHandle[prodv]
+    handle = get_handle(ROOT.art.InputTag(args.tag))
+    rawdigits = handle.product()
 
-    print("Number of RawDigits:", len(rawdigits))
+    nchan = len(rawdigits)
+    print("Number of RawDigits:", nchan)
 
-    # --------------------------------------------------
+    # --------------------------------------------------------
     # Build waveform array
-    # --------------------------------------------------
-    apa1_wfs = np.zeros((2560, args.nticks))
+    # --------------------------------------------------------
+    wfs = np.zeros((nchan, NTICKS), dtype=np.float32)
 
-    for wf in rawdigits:
-        channel = wf.Channel()
-        if channel < 2560:
-            apa1_wfs[channel] = np.array(wf.ADCs()[:args.nticks])
+    for rd in rawdigits:
+        ch = rd.Channel()
+        if ch >= nchan:
+            continue
 
-    img = apa1_wfs.T - np.mean(apa1_wfs, axis=1)
+        adc = np.array(rd.ADCs(), dtype=np.float32)
+        adc -= rd.GetPedestal()   # correct pedestal subtraction
 
-    print("img shape:", img.shape)
+        nt = min(len(adc), NTICKS)
+        wfs[ch, :nt] = adc[:nt]
 
-    # --------------------------------------------------
+    # --------------------------------------------------------
     # Plot
-    # --------------------------------------------------
-    plt.figure(figsize=(10, 6))
-    plt.imshow(
-        img,
-        aspect='auto',
-        vmin=-20,
-        vmax=20,
-        interpolation='nearest'
+    # --------------------------------------------------------
+    fig, axes = plt.subplots(2, 3, figsize=(18, 10))
+    plt.suptitle(
+        "CRP4+5 Event Display: Induced and Collected Charge Views",
+        fontsize=16,
     )
 
-    plt.gca().invert_yaxis()
-    plt.ylabel('Time [tick]')
-    plt.xlabel('Channel')
-    plt.colorbar(label='ADC')
-    plt.tight_layout()
+    im1 = plot_view(axes[0,0], wfs, CRP4_U, "CRP4 - View 0/U (Ind.)",
+                    IND_VMIN, IND_VMAX, CMAP_IND)
+    im2 = plot_view(axes[0,1], wfs, CRP4_V, "CRP4 - View 1/V (Ind.)",
+                    IND_VMIN, IND_VMAX, CMAP_IND)
+    im3 = plot_view(axes[0,2], wfs, CRP4_Z, "CRP4 - View 2/Z (Coll.)",
+                    COL_VMIN, COL_VMAX, CMAP_COL)
+
+    im4 = plot_view(axes[1,0], wfs, CRP5_U, "CRP5 - View 0/U (Ind.)",
+                    IND_VMIN, IND_VMAX, CMAP_IND)
+    im5 = plot_view(axes[1,1], wfs, CRP5_V, "CRP5 - View 1/V (Ind.)",
+                    IND_VMIN, IND_VMAX, CMAP_IND)
+    im6 = plot_view(axes[1,2], wfs, CRP5_Z, "CRP5 - View 2/Z (Coll.)",
+                    COL_VMIN, COL_VMAX, CMAP_COL)
+
+    for ax, im in zip(
+        [axes[0,0], axes[0,1], axes[1,0], axes[1,1]],
+        [im1, im2, im4, im5],
+    ):
+        plt.colorbar(im, ax=ax, label="ADC")
+
+    plt.colorbar(im3, ax=axes[0,2], label="ADC")
+    plt.colorbar(im6, ax=axes[1,2], label="ADC")
+
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
     plt.show()
 
 
-if __name__ == '__main__':
+# ------------------------------------------------------------
+if __name__ == "__main__":
     main()
