@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from gallery_utils import read_header, provide_list
 
 # ------------------------------------------------------------
-# Constants (MATCH reference display)
+# Constants
 # ------------------------------------------------------------
 NTICKS = 8000
 
@@ -35,11 +35,11 @@ def plot_view(ax, wfs, ch_range, title, vmin, vmax, cmap):
     img = ax.imshow(
         wfs[ch_range[0]:ch_range[1], :].T,
         aspect="auto",
-        origin="upper",
+        origin="lower",                     # <-- FIX
         vmin=vmin,
         vmax=vmax,
         cmap=cmap,
-        extent=[ch_range[0], ch_range[1], NTICKS, 0],
+        extent=[ch_range[0], ch_range[1], 0, NTICKS],  # <-- FIX
     )
     ax.set_title(title)
     ax.set_xlabel("Channel Number")
@@ -49,17 +49,11 @@ def plot_view(ax, wfs, ch_range, title, vmin, vmax, cmap):
 
 # ------------------------------------------------------------
 def main():
-    # --------------------------------------------------------
-    # gallery setup (REQUIRED)
-    # --------------------------------------------------------
     read_header("gallery/ValidHandle.h")
 
     prodv = "std::vector<raw::RawDigit>"
     provide_list([prodv])
 
-    # --------------------------------------------------------
-    # arguments
-    # --------------------------------------------------------
     parser = ArgumentParser()
     parser.add_argument("-f", required=True, help="Input ROOT file")
     parser.add_argument(
@@ -69,9 +63,6 @@ def main():
     )
     args = parser.parse_args()
 
-    # --------------------------------------------------------
-    # Open event SAFELY
-    # --------------------------------------------------------
     ev = ROOT.gallery.Event([args.f])
     ev.goToEntry(0)
 
@@ -82,9 +73,6 @@ def main():
     nchan = len(rawdigits)
     print("Number of RawDigits:", nchan)
 
-    # --------------------------------------------------------
-    # Build waveform array
-    # --------------------------------------------------------
     wfs = np.zeros((nchan, NTICKS), dtype=np.float32)
 
     for rd in rawdigits:
@@ -93,47 +81,56 @@ def main():
             continue
 
         adc = np.array(rd.ADCs(), dtype=np.float32)
-        adc -= rd.GetPedestal()   # correct pedestal subtraction
+        adc -= rd.GetPedestal()
 
         nt = min(len(adc), NTICKS)
         wfs[ch, :nt] = adc[:nt]
 
-    # --------------------------------------------------------
-    # Plot
-    # --------------------------------------------------------
     fig, axes = plt.subplots(2, 3, figsize=(18, 10))
-    plt.suptitle(
+
+    fig.suptitle(
         "CRP4+5 Event Display: Induced and Collected Charge Views",
         fontsize=16,
     )
 
-    im1 = plot_view(axes[0,0], wfs, CRP4_U, "CRP4 - View 0/U (Ind.)",
+    im1 = plot_view(axes[0,0], wfs, CRP4_U, "CRP4 - View 0 / U (Induced)",
                     IND_VMIN, IND_VMAX, CMAP_IND)
-    im2 = plot_view(axes[0,1], wfs, CRP4_V, "CRP4 - View 1/V (Ind.)",
+    im2 = plot_view(axes[0,1], wfs, CRP4_V, "CRP4 - View 1 / V (Induced)",
                     IND_VMIN, IND_VMAX, CMAP_IND)
-    im3 = plot_view(axes[0,2], wfs, CRP4_Z, "CRP4 - View 2/Z (Coll.)",
+    im3 = plot_view(axes[0,2], wfs, CRP4_Z, "CRP4 - View 2 / Z (Collected)",
                     COL_VMIN, COL_VMAX, CMAP_COL)
 
-    im4 = plot_view(axes[1,0], wfs, CRP5_U, "CRP5 - View 0/U (Ind.)",
+    im4 = plot_view(axes[1,0], wfs, CRP5_U, "CRP5 - View 0 / U (Induced)",
                     IND_VMIN, IND_VMAX, CMAP_IND)
-    im5 = plot_view(axes[1,1], wfs, CRP5_V, "CRP5 - View 1/V (Ind.)",
+    im5 = plot_view(axes[1,1], wfs, CRP5_V, "CRP5 - View 1 / V (Induced)",
                     IND_VMIN, IND_VMAX, CMAP_IND)
-    im6 = plot_view(axes[1,2], wfs, CRP5_Z, "CRP5 - View 2/Z (Coll.)",
+    im6 = plot_view(axes[1,2], wfs, CRP5_Z, "CRP5 - View 2 / Z (Collected)",
                     COL_VMIN, COL_VMAX, CMAP_COL)
 
     for ax, im in zip(
         [axes[0,0], axes[0,1], axes[1,0], axes[1,1]],
         [im1, im2, im4, im5],
     ):
-        plt.colorbar(im, ax=ax, label="ADC")
+        plt.colorbar(im, ax=ax, label="ADC", pad=0.04)
 
-    plt.colorbar(im3, ax=axes[0,2], label="ADC")
-    plt.colorbar(im6, ax=axes[1,2], label="ADC")
+    plt.colorbar(im3, ax=axes[0,2], label="ADC", pad=0.04)
+    plt.colorbar(im6, ax=axes[1,2], label="ADC", pad=0.04)
 
-    plt.tight_layout(rect=[0, 0, 1, 0.95])
+    plt.subplots_adjust(
+        left=0.06,
+        right=0.96,
+        top=0.90,
+        bottom=0.07,
+        wspace=0.30,
+        hspace=0.30,
+    )
+
+    for ax in axes.flatten():
+        ax.tick_params(axis="x", pad=8)
+
     plt.show()
 
 
-# ------------------------------------------------------------
 if __name__ == "__main__":
     main()
+
