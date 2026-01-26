@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 #written by Nilay B.
+# in CERN SWAN, run with the command: python sps_timber_analysis.py 
+# In Swan, in the software stack part, you should select the NXCALS cluster, then run the code. 
 import pytimber
 import pandas as pd
 from pyspark.sql import SparkSession
