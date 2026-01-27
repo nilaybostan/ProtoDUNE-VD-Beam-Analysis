@@ -8,8 +8,9 @@ import matplotlib.pyplot as plt
 # ------------------------------------------------------------
 NTICKS = 8000
 
-IND_VMIN, IND_VMAX = -20, 20
-COL_VMIN, COL_VMAX = -10, 50
+# MATCH reference plot color scales
+IND_VMIN, IND_VMAX = -40, 40     # Induced (U, V)
+COL_VMIN, COL_VMAX = 0, 100      # Collected (Z)
 
 CMAP_IND = "RdBu_r"
 CMAP_COL = "viridis"
@@ -78,36 +79,43 @@ def main():
     fig, axes = plt.subplots(2, 3, figsize=(18, 10))
 
     fig.suptitle(
-        "CRP4+5 Event Display: Induced and Collected Charge Wires",
+        "CRP4+5 Event Display: Induced and Collected Charge Views",
         fontsize=16,
     )
 
     im1 = plot_view(
-        axes[0, 0], wfs, CRP4_U, "CRP4 - View 0 / U (Induced)",
+        axes[0, 0], wfs, CRP4_U,
+        "CRP4 - View 0 / U (Induced)",
         IND_VMIN, IND_VMAX, CMAP_IND
     )
     im2 = plot_view(
-        axes[0, 1], wfs, CRP4_V, "CRP4 - View 1 / V (Induced)",
+        axes[0, 1], wfs, CRP4_V,
+        "CRP4 - View 1 / V (Induced)",
         IND_VMIN, IND_VMAX, CMAP_IND
     )
     im3 = plot_view(
-        axes[0, 2], wfs, CRP4_Z, "CRP4 - View 2 / Z (Collected)",
+        axes[0, 2], wfs, CRP4_Z,
+        "CRP4 - View 2 / Z (Collected)",
         COL_VMIN, COL_VMAX, CMAP_COL
     )
 
     im4 = plot_view(
-        axes[1, 0], wfs, CRP5_U, "CRP5 - View 0 / U (Induced)",
+        axes[1, 0], wfs, CRP5_U,
+        "CRP5 - View 0 / U (Induced)",
         IND_VMIN, IND_VMAX, CMAP_IND
     )
     im5 = plot_view(
-        axes[1, 1], wfs, CRP5_V, "CRP5 - View 1 / V (Induced)",
+        axes[1, 1], wfs, CRP5_V,
+        "CRP5 - View 1 / V (Induced)",
         IND_VMIN, IND_VMAX, CMAP_IND
     )
     im6 = plot_view(
-        axes[1, 2], wfs, CRP5_Z, "CRP5 - View 2 / Z (Collected)",
+        axes[1, 2], wfs, CRP5_Z,
+        "CRP5 - View 2 / Z (Collected)",
         COL_VMIN, COL_VMAX, CMAP_COL
     )
 
+    # ------------------------------------------------------------
     # Colorbars
     for ax, im in zip(
         [axes[0,0], axes[0,1], axes[1,0], axes[1,1]],
@@ -118,7 +126,8 @@ def main():
     plt.colorbar(im3, ax=axes[0,2], label="ADC", pad=0.04)
     plt.colorbar(im6, ax=axes[1,2], label="ADC", pad=0.04)
 
-    # Layout adjustments (spacing like RawDigit version)
+    # ------------------------------------------------------------
+    # Layout adjustments
     plt.subplots_adjust(
         left=0.06,
         right=0.96,
@@ -136,3 +145,4 @@ def main():
 # ------------------------------------------------------------
 if __name__ == "__main__":
     main()
+
