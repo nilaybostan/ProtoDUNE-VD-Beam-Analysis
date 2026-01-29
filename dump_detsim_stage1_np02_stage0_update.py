@@ -53,13 +53,13 @@ def main():
 
     # ---- recob::Wire handle ----
     WireVec = ROOT.std.vector("recob::Wire")
-    tag = ROOT.art.InputTag("wclsdatavd", "wiener")
+    tag = ROOT.art.InputTag("wclsdatavd", "gauss")
 
     try:
         handle = ev.getValidHandle[WireVec](tag)
     except Exception:
         raise RuntimeError(
-            "recob::Wire not found with tag wclsdatavd:wiener\n"
+            "recob::Wire not found with tag wclsdatavd:gauss\n"
             "Check edmDumpEventContent."
         )
 
@@ -147,4 +147,3 @@ def main():
 # ------------------------------------------------------------
 if __name__ == "__main__":
     main()
-
