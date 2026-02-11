@@ -14,6 +14,8 @@
 #include <TROOT.h>
 #include <TStyle.h>
 
+#how to run: root -l -q 'PDVD_ClusterPlot_last.C+("output_singlehist_neutrino_stage1.root")'
+
 using namespace std;
 
 void PDVD_ClusterPlot_last(const char* filename)
