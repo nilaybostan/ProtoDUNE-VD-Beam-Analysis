@@ -10,12 +10,12 @@ datasets = {
     "0.5 GeV": {
         "pattern_main": "/pnfs/dune/scratch/users/nbostan/g4beamline_prod/H2main/05GeV_analysis_new/fnal/14769/1/001/*.npz",
         "pattern_custom": "/pnfs/dune/scratch/users/nbostan/g4beamline_prod/H2custom/05GeV_analysis_new/fnal/14767/1/001/*.npz",
-        "momentum_range": (0.0, 3.0)
+        "momentum_range": (0.2, 0.8)
     },
     "8 GeV": {
         "pattern_main": "/pnfs/dune/scratch/users/nbostan/g4beamline_prod/H2main/8GeV_analysis_new/fnal/14768/1/001/*.npz",
         "pattern_custom": "/pnfs/dune/scratch/users/nbostan/g4beamline_prod/H2custom/8GeV_analysis_new/fnal/14770/1/001/*.npz",
-        "momentum_range": (6.0, 9.0)
+        "momentum_range": (7.5, 8.5)
     }
 }
 
