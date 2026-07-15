@@ -15,7 +15,7 @@
 #include <cmath>
 #include <algorithm>
 
-void beam_analysis_PDVD_data()
+void beam_analysis_PDVD_DATA()
 {
     //==================================================
     // 1. Input
