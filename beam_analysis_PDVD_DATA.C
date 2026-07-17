@@ -9,13 +9,13 @@
 #include <TLatex.h>
 #include <TStyle.h>
 #include <TLegend.h>
-
+#include <TPad.h>
 #include <iostream>
 #include <vector>
 #include <cmath>
 #include <algorithm>
 
-void beam_analysis_PDVD_DATA()
+void make_histograms_add_4()
 {
     //==================================================
     // 1. Input
@@ -226,6 +226,30 @@ void beam_analysis_PDVD_DATA()
             200, 0, 10
         );
 
+TH1F *hFiberIndexUpX =
+new TH1F(
+    "hFiberIndexUpX",
+    "Upstream X Active Fiber Index;Fiber Index;Entries",
+    196,0,196);
+
+TH1F *hFiberIndexUpY =
+new TH1F(
+    "hFiberIndexUpY",
+    "Upstream Y Active Fiber Index;Fiber Index;Entries",
+    196,0,196);
+
+TH1F *hFiberIndexDownX =
+new TH1F(
+    "hFiberIndexDownX",
+    "Downstream X Active Fiber Index;Fiber Index;Entries",
+    196,0,196);
+
+TH1F *hFiberIndexDownY =
+new TH1F(
+    "hFiberIndexDownY",
+    "Downstream Y Active Fiber Index;Fiber Index;Entries",
+    196,0,196);
+	
 
     //==================================================
     // Momentum resolution
@@ -774,21 +798,59 @@ if (BeamPositions && BeamPositions->size() >= 4)
 
     double downX = BeamPositions->at(2);
     double downY = BeamPositions->at(3);
+    
+    
+    // Remove events with missing BPM information
+if (upX == 0 || upY == 0 || downX == 0 || downY == 0)
+    continue;
+  
 
 
-    hUpstreamX->Fill(upX);
-    hUpstreamY->Fill(upY);
+const double fiberSize = 1.0;   // mm
+
+auto PosToFiber = [&](double pos)
+{
+    return std::lround(96 - (pos + fiberSize/2.) / fiberSize);
+};
 
 
-    hDownstreamX->Fill(downX);
-    hDownstreamY->Fill(downY);
+    // Upstream module 55 (X) and 56 (Y)
+//==================================================
+// Beam profile histograms
+//==================================================
+
+// Upstream module
+hUpstreamX->Fill(upX);
+hUpstreamY->Fill(upY);
+
+int fiberUpX = PosToFiber(upX);
+int fiberUpY = PosToFiber(upY);
+
+if (fiberUpX >= 0 && fiberUpX < 196)
+    hFiberIndexUpX->Fill(fiberUpX);
+
+if (fiberUpY >= 0 && fiberUpY < 196)
+    hFiberIndexUpY->Fill(fiberUpY);
 
 
-    hBeamSpotUp->Fill(upX,upY);
-    hBeamSpotDown->Fill(downX,downY);
+// Downstream module
+hDownstreamX->Fill(downX);
+hDownstreamY->Fill(downY);
 
+int fiberDownX = PosToFiber(downX);
+int fiberDownY = PosToFiber(downY);
+
+if (fiberDownX >= 0 && fiberDownX < 196)
+    hFiberIndexDownX->Fill(fiberDownX);
+
+if (fiberDownY >= 0 && fiberDownY < 196)
+    hFiberIndexDownY->Fill(fiberDownY);
+
+
+// Beam spots
+hBeamSpotUp->Fill(upX, upY);
+hBeamSpotDown->Fill(downX, downY);
 }
-
         //==============================================
         // BEAM-POSITION CUT
         //==============================================
@@ -1179,6 +1241,26 @@ cBeamProfileDown->SaveAs(
 cBeamProfileDown->SaveAs(
     "beam_profile_downstream.pdf"
 );
+
+TCanvas *cFiberIndex =
+new TCanvas("cFiberIndex","Fiber Index",1200,800);
+
+cFiberIndex->Divide(2,2);
+
+cFiberIndex->cd(1);
+hFiberIndexUpX->Draw();
+
+cFiberIndex->cd(2);
+hFiberIndexUpY->Draw();
+
+cFiberIndex->cd(3);
+hFiberIndexDownX->Draw();
+
+cFiberIndex->cd(4);
+hFiberIndexDownY->Draw();
+
+cFiberIndex->SaveAs("fiber_index.png");
+cFiberIndex->SaveAs("fiber_index.pdf");
 
     //==================================================
     // Momentum-resolution fit
@@ -1702,6 +1784,13 @@ hBeamSpotDown->Write();
 
 cBeamProfileUp->Write();
 cBeamProfileDown->Write();
+
+hFiberIndexUpX->Write();
+hFiberIndexUpY->Write();
+hFiberIndexDownX->Write();
+hFiberIndexDownY->Write();
+
+cFiberIndex->Write();
 
 
     output.Close();
