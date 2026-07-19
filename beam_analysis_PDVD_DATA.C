@@ -15,7 +15,7 @@
 #include <cmath>
 #include <algorithm>
 
-void make_histograms_add_4()
+void beam_analysis_PDVD_DATA()
 {
     //==================================================
     // 1. Input
