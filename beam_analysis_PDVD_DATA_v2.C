@@ -13,15 +13,33 @@
 #include <cmath>
 #include <algorithm>
 
+//==================================================
+// Fiber position -> fiber index conversion
+//==================================================
+
+int PosToFiber(double pos)
+{
+    const double fiberSize = 0.5;
+
+    return std::lround(
+        96 - (pos + fiberSize/2.) / fiberSize
+    );
+}
+
+
+
 void beam_analysis_PDVD_DATA_v2()
 {
     //==================================================
     // 1. Input
     //==================================================
 
+    //const char* inputPath =
+      //  "/pnfs/dune/scratch/users/ykermaid/fnal/18125/1/001/"
+        //"*_beamselection.root";
+        
     const char* inputPath =
-        "/pnfs/dune/scratch/users/ykermaid/fnal/18125/1/001/"
-        "*_beamselection.root";
+        "np02vd_raw_run039324_2507_df-s04-d3_dw_0_20250907T205828_reco_stage1_20260503T214554_offline_reco_stage2_20260503T225330_offline_20260722T111006_beamselection.root";    
 
     TChain chain("beamselection/tree");
 
@@ -67,9 +85,10 @@ void beam_analysis_PDVD_DATA_v2()
     Float_t  BeamTOF;
     Short_t  BeamCKov0;
     Short_t  BeamCKov1;
-    Double_t BeamMomentum;
+    //Double_t BeamMomentum;
 
-    std::vector<double>* BeamPositions = nullptr;
+    std::vector<double>* BeamMomentum = nullptr;
+    std::vector<std::vector<double>>* BeamPositions = nullptr;
 
     Int_t PrimaryKey;
     Int_t PrimaryPdg;
@@ -849,13 +868,17 @@ new TH2F(
 
 
     for (Long64_t i = 0; i < nEntries; i++)
+{
+    chain.GetEntry(i);
+
+    double momentum = -999;
+
+    if (BeamMomentum && BeamMomentum->size() > 0)
     {
-        chain.GetEntry(i);
+        momentum = BeamMomentum->at(0);
+    }
 
-
-        //==============================================
-        // BASIC CUTS
-        //==============================================
+    // bundan sonra momentum kullan
 
         if (BeamTOF <= 0.0)
             continue;
@@ -863,8 +886,8 @@ new TH2F(
         if (BeamTOF >= 500.0)
             continue;
 
-        if (BeamMomentum <= 0.0)
-            continue;
+        if (momentum <= 0.0)
+    	    continue;
 
         nBasicSelected++;
 
@@ -901,137 +924,223 @@ new TH2F(
         // BEFORE BEAM-POSITION CUT
         //==============================================
 
-        if (BeamPositions)
-        {
-            for (double position : *BeamPositions)
-            {
-                hBeamPositionsBeforeCut->Fill(position);
+        //==============================================
+// BEFORE BEAM-POSITION CUT
+//==============================================
 
-                hMomentumVsBeamPositionBeforeCut->Fill(
-                    position,
-                    BeamMomentum
-                );
-            }
+if (BeamPositions)
+{
+    for (auto const& modulePositions : *BeamPositions)
+    {
+        for (double position : modulePositions)
+        {
+            hBeamPositionsBeforeCut->Fill(position);
+
+            hMomentumVsBeamPositionBeforeCut->Fill(
+                position,
+                momentum
+            );
         }
+    }
+}
 
 
 	//==============================================
 // BEAM PROFILE (UPSTREAM / DOWNSTREAM)
 //==============================================
 
+//==============================================
+// BEAM PROFILE (ALL ACTIVATED FIBERS)
+//==============================================
+//==============================================
+// BEAM PROFILE (ALL ACTIVATED FIBERS)
+// Remove position = 0 entries
+//==============================================
+
 if (BeamPositions && BeamPositions->size() >= 4)
 {
 
-    double upX = BeamPositions->at(0);
-    double upY = BeamPositions->at(1);
+    //------------------------------------------
+    // Upstream X fibers
+    //------------------------------------------
 
-    double downX = BeamPositions->at(2);
-    double downY = BeamPositions->at(3);
-    
-    
-    // Remove events with missing BPM information
-if (upX == 0 || upY == 0 || downX == 0 || downY == 0)
-    continue;
-  
+    for (double upX : BeamPositions->at(0))
+    {
+        if (std::abs(upX) < 1e-6)
+            continue;
 
+        hUpstreamX->Fill(upX);
 
-const double fiberSize = 1.0;   // mm
+        int fiberUpX = PosToFiber(upX);
 
-auto PosToFiber = [&](double pos)
-{
-    return std::lround(96 - (pos + fiberSize/2.) / fiberSize);
-};
+        if (fiberUpX >= 0 && fiberUpX < 196)
+            hFiberIndexUpX->Fill(fiberUpX);
+    }
 
 
-    // Upstream module 55 (X) and 56 (Y)
-//==================================================
-// Beam profile histograms
-//==================================================
+    //------------------------------------------
+    // Upstream Y fibers
+    //------------------------------------------
 
-// Upstream module
-hUpstreamX->Fill(upX);
-hUpstreamY->Fill(upY);
+    for (double upY : BeamPositions->at(1))
+    {
+        if (std::abs(upY) < 1e-6)
+            continue;
 
-int fiberUpX = PosToFiber(upX);
-int fiberUpY = PosToFiber(upY);
+        hUpstreamY->Fill(upY);
 
-if (fiberUpX >= 0 && fiberUpX < 196)
-    hFiberIndexUpX->Fill(fiberUpX);
+        int fiberUpY = PosToFiber(upY);
 
-if (fiberUpY >= 0 && fiberUpY < 196)
-    hFiberIndexUpY->Fill(fiberUpY);
-
-
-// Downstream module
-hDownstreamX->Fill(downX);
-hDownstreamY->Fill(downY);
-
-int fiberDownX = PosToFiber(downX);
-int fiberDownY = PosToFiber(downY);
-
-if (fiberDownX >= 0 && fiberDownX < 196)
-    hFiberIndexDownX->Fill(fiberDownX);
-
-if (fiberDownY >= 0 && fiberDownY < 196)
-    hFiberIndexDownY->Fill(fiberDownY);
+        if (fiberUpY >= 0 && fiberUpY < 196)
+            hFiberIndexUpY->Fill(fiberUpY);
+    }
 
 
-// Beam spots
-hBeamSpotUp->Fill(upX, upY);
-hBeamSpotDown->Fill(downX, downY);
+    //------------------------------------------
+    // Downstream X fibers
+    //------------------------------------------
+
+    for (double downX : BeamPositions->at(2))
+    {
+            if (std::abs(downX) < 1e-6)
+
+            continue;
+
+        hDownstreamX->Fill(downX);
+
+        int fiberDownX = PosToFiber(downX);
+
+        if (fiberDownX >= 0 && fiberDownX < 196)
+            hFiberIndexDownX->Fill(fiberDownX);
+    }
+
+
+    //------------------------------------------
+    // Downstream Y fibers
+    //------------------------------------------
+
+    for (double downY : BeamPositions->at(3))
+    {
+        if (std::abs(downY) < 1e-6)
+            continue;
+
+        hDownstreamY->Fill(downY);
+
+        int fiberDownY = PosToFiber(downY);
+
+        if (fiberDownY >= 0 && fiberDownY < 196)
+            hFiberIndexDownY->Fill(fiberDownY);
+    }
+
+
+    //------------------------------------------
+    // Upstream Beam Spot
+    //------------------------------------------
+
+    for (double upX : BeamPositions->at(0))
+    {
+        if (std::abs(upX) < 1e-6)
+            continue;
+
+        for (double upY : BeamPositions->at(1))
+        {
+            if (std::abs(upY) < 1e-6)
+                continue;
+
+            hBeamSpotUp->Fill(
+                upX,
+                upY
+            );
+        }
+    }
+
+
+    //------------------------------------------
+    // Downstream Beam Spot
+    //------------------------------------------
+
+    for (double downX : BeamPositions->at(2))
+    {
+        if (std::abs(downX) < 1e-6)
+            continue;
+
+        for (double downY : BeamPositions->at(3))
+        {
+            if (std::abs(downY) < 1e-6)
+                continue;
+
+            hBeamSpotDown->Fill(
+                downX,
+                downY
+            );
+        }
+    }
+
 }
-        //==============================================
+
+      //==============================================
         // BEAM-POSITION CUT
         //==============================================
 
         bool passBeamPositionCut = true;
 
-        if (!BeamPositions || BeamPositions->empty())
+if (!BeamPositions || BeamPositions->empty())
+{
+    passBeamPositionCut = false;
+}
+else
+{
+    for (auto const& modulePositions : *BeamPositions)
+    {
+        for (double position : modulePositions)
         {
-            passBeamPositionCut = false;
-        }
-        else
-        {
-            for (double position : *BeamPositions)
+            if (position <= beamPosMin ||
+                position >= beamPosMax)
             {
-                if (position <= beamPosMin ||
-                    position >= beamPosMax)
-                {
-                    passBeamPositionCut = false;
-                    break;
-                }
+                passBeamPositionCut = false;
+                break;
             }
         }
 
-        if (!passBeamPositionCut)
-            continue;
+                if (!passBeamPositionCut)
+            break;
 
-        nPositionSelected++;
+    }
+
+
+    if (!passBeamPositionCut)
+        continue;
+
+
+    nPositionSelected++;
 
 
         //==============================================
         // AFTER BEAM-POSITION CUT
         //==============================================
 
-        for (double position : *BeamPositions)
-        {
-            hBeamPositionsAfterCut->Fill(position);
+        for (auto const& modulePositions : *BeamPositions)
+{
+    for (double position : modulePositions)
+    {
+        hBeamPositionsAfterCut->Fill(position);
 
-            hMomentumVsBeamPositionAfterCut->Fill(
-                position,
-                BeamMomentum
-            );
-        }
+        hMomentumVsBeamPositionAfterCut->Fill(
+            position,
+            momentum
+        );
+    }
+}
 
 
         //==============================================
         // FINAL HISTOGRAMS
         //==============================================
 
-        hBeamMomentum->Fill(BeamMomentum);
+        hBeamMomentum->Fill(momentum);
 
         double deltaPOverP =
-            (BeamMomentum - nominalMomentum)
+    	    (momentum - nominalMomentum)
             / nominalMomentum;
 
         hDeltaPOverP->Fill(deltaPOverP);
@@ -1222,7 +1331,7 @@ if (ChildBeamPFPKey &&
         //==============================================
 
         hTOFvsMomentum->Fill(
-            BeamMomentum,
+            momentum,
             BeamTOF
         );
 
@@ -1230,7 +1339,7 @@ if (ChildBeamPFPKey &&
         if (PrimaryPdg == 211)
         {
             hTOFvsMomentum_Pion->Fill(
-                BeamMomentum,
+                momentum,
                 BeamTOF
             );
         }
@@ -1239,7 +1348,7 @@ if (ChildBeamPFPKey &&
         if (PrimaryPdg == 11)
         {
             hTOFvsMomentum_Electron->Fill(
-                BeamMomentum,
+                momentum,
                 BeamTOF
             );
         }
@@ -1256,7 +1365,7 @@ if (ChildBeamPFPKey &&
         );
 
         hMomentumVsLength->Fill(
-            BeamMomentum,
+            momentum,
             PrimBeamPFPTrackLength
         );
 
@@ -1271,7 +1380,7 @@ if (ChildBeamPFPKey &&
         );
 
         hMomentumVsPDG->Fill(
-            BeamMomentum,
+            momentum,
             PrimaryPdg
         );
 
@@ -1293,6 +1402,9 @@ if (ChildBeamPFPKey &&
                 << i
                 << " events"
                 << std::endl;
+                
+                
+          }
         }
     }
 
